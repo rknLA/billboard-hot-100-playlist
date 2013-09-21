@@ -9,10 +9,10 @@ class CharterRdioAPITests(unittest.TestCase):
   def setUp(self):
     self.rdio = Rdio((RDIO_CONSUMER_KEY, RDIO_CONSUMER_SECRET),
                      RDIO_TEST_OAUTH_TOKEN)
-    test_playlist = rdio.call('createPlaylist',
-                              {'name': 'charter test',
-                               'description': 'test charts',
-                               'tracks': 't10016979,t28083363,t7357573'})
+    test_playlist = self.rdio.call('createPlaylist',
+                                   {'name': 'charter test',
+                                    'description': 'test charts',
+                                    'tracks': 't10016979,t28083363,t7357573'})
     self.playlist = test_playlist['result']
     self.playlist_key = self.playlist['key']
     self.charter = Charter(rdio=self.rdio)
@@ -21,12 +21,11 @@ class CharterRdioAPITests(unittest.TestCase):
     self.rdio.call('deletePlaylist', {'playlist': self.playlist_key})
 
   def test_changing_order(self):
-    new_list = ['t28083363', 't7357573', 't10016979']
-    self.charter.update_playlist(self.playlist_key, new_list)
+    expected_update = ['t28083363', 't7357573', 't10016979']
+    self.charter.updatePlaylist(self.playlist_key, expected_update)
     playlist = self.rdio.call('get', params={'keys': self.playlist_key,
                                              'extras': '-*,name,trackKeys'})
-    new_tracks = playlist['result']['trackKeys']
-    print new_tracks
-    self.assertTrue(False)
+    actual_tracks = playlist['result'][self.playlist_key]['trackKeys']
+    self.assertListEqual(actual_tracks, expected_update)
 
   
