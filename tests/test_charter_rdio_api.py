@@ -14,15 +14,19 @@ class CharterRdioAPITests(unittest.TestCase):
                                'description': 'test charts',
                                'tracks': 't10016979,t28083363,t7357573'})
     self.playlist = test_playlist['result']
-    
-    chart_updater = Charter()
-    chart_updater.authenticate()
+    self.playlist_key = self.playlist['key']
+    self.charter = Charter(rdio=self.rdio)
 
   def tearDown(self):
-    rdio.call('deletePlaylist', {'playlist': self.playlist['key']})
+    self.rdio.call('deletePlaylist', {'playlist': self.playlist_key})
 
-  def test_updating_a_playlist(self):
-    new_list = ['
-    chart_updater.update(playlist=RDIO_TEST_PLAYLIST_KEY, )
+  def test_changing_order(self):
+    new_list = ['t28083363', 't7357573', 't10016979']
+    self.charter.update_playlist(self.playlist_key, new_list)
+    playlist = self.rdio.call('get', params={'keys': self.playlist_key,
+                                             'extras': '-*,name,trackKeys'})
+    new_tracks = playlist['result']['trackKeys']
+    print new_tracks
+    self.assertTrue(False)
 
   
