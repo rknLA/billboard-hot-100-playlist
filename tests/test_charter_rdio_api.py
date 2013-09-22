@@ -1,8 +1,8 @@
 import unittest
 
 from config import RDIO_CONSUMER_KEY, RDIO_CONSUMER_SECRET, RDIO_TEST_OAUTH_TOKEN
-from lib.charter import Charter
-from lib.rdio import Rdio
+from charter.charter import Charter
+from rdio.rdio import Rdio
 
 class CharterRdioAPITests(unittest.TestCase):
 

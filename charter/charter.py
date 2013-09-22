@@ -1,6 +1,6 @@
 import logging
 
-from lib.rdio import Rdio
+from rdio.rdio import Rdio
 
 class Charter(object):
 

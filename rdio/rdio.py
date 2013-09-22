@@ -17,7 +17,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from lib.om import om
+from om import om
 import urllib2, urllib
 from urlparse import parse_qsl
 try:
