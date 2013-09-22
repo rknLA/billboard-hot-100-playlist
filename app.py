@@ -2,7 +2,7 @@ import datetime
 import logging
 import uuid
 
-from flask import Flask, redirect, request, session, url_for
+from flask import Flask, redirect, render_template, request, session, url_for
 
 import config
 from rdio.rdio import Rdio
@@ -42,20 +42,16 @@ def home():
     if 'at' in session_data and 'ats' in session_data:
       rdio = Rdio(RDIO_CREDS, (session_data['at'], session_data['ats']))
       try:
-        currentUser = rdio.call('currentUser')['result']
+        currentUser = rdio.call('currentUser', {'extras': '-*,username'})['result']
+        userPlaylists = rdio.call('getPlaylists', {'extras': '-*,name,key'})['result']['owned']
       except urllib2.HTTPError:
         return redirect(url_for('logout'))
       logging.debug("rdio user: %s", currentUser)
-      return "Hello, %s" % (currentUser['firstName'])
+      logging.debug("playlists: %s", userPlaylists)
+      return render_template('authenticated.html', username=currentUser['username'], playlists=userPlaylists)
   else:
     session['uuid'] = uuid.uuid4().hex
-    return """
-    <html><head><title>Billboard</title></head><body><div>
-    Hello World!
-    </div><div>
-    <a href="%s">Login</a>
-    </div></body></html>
-    """ % (url_for('login'), )
+    return render_template('index.html')
 
 @app.route("/login")
 def login():
@@ -85,7 +81,15 @@ def rdio_callback():
   session_data['ats'] = rdio.token[1]
   del session_data['rt']
   del session_data['rts']
-  return redirect(url_for('home')) 
+  return redirect(url_for('home'))
+
+@app.route("/logout")
+def logout():
+  session_id = session.pop('uuid', None)
+  if session_id is not None:
+    del memory_store[session_id]
+  return redirect(url_for('index'))
+  
 
 if __name__ == "__main__":
   app.run()
