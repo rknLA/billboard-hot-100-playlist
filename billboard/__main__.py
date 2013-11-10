@@ -8,5 +8,5 @@ if __name__ == '__main__':
               config.RDIO_TEST_OAUTH_TOKEN)
   charter = Charter(rdio=rdio)
   new_chart = scrapeBillboard()
-  charter.updatePlaylist('p6370332', new_chart)
+  charter.updatePlaylist('my playlist key', new_chart)
   
