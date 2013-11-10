@@ -36,7 +36,7 @@ class Rdio:
     res = urllib2.urlopen(req)
     return res.read()
 
-  def begin_authentication(self, callback_url):
+  def begin_authentication(self, callback_url, mode='popup'):
     # request a request token from the server
     response = self.__signed_post('http://api.rdio.com/oauth/request_token',
       {'oauth_callback': callback_url})
@@ -45,7 +45,7 @@ class Rdio:
     # save the token
     self.token = (parsed['oauth_token'], parsed['oauth_token_secret'])
     # return an URL that the user can use to authorize this application
-    return parsed['login_url'] + '?oauth_token=' + parsed['oauth_token']
+    return parsed['login_url'] + '?oauth_token=' + parsed['oauth_token'] + '&mode=' + mode
 
   def complete_authentication(self, verifier):
     # request an access token

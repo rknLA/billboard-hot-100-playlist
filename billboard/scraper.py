@@ -18,7 +18,7 @@ def scrapeBillboard():
   global scraped_keys
   scrapeChartPage(base_url + '/charts/hot-100')
   keys = scraped_keys
-  # reset scraped keys in case this gets called twice in one run (why??)
+  # reset scraped keys in case this gets called twice in one run
   scraped_keys = []
   return keys
 

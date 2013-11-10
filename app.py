@@ -4,6 +4,8 @@ import uuid
 
 from flask import Flask, redirect, render_template, request, session, url_for
 
+from billboard.scraper import scrapeBillboard
+from charter.charter import Charter
 import config
 from rdio.rdio import Rdio
 
@@ -34,31 +36,46 @@ def pruneOldSessionData():
       if now > data['expires']:
         del memory_store[key]
 
-
-@app.route("/")
-def home():
+def rdioFromSession(session):
   if 'uuid' in session and session['uuid'] in memory_store:
     session_data = memory_store[session['uuid']]
     if 'at' in session_data and 'ats' in session_data:
-      rdio = Rdio(RDIO_CREDS, (session_data['at'], session_data['ats']))
-      try:
-        currentUser = rdio.call('currentUser', {'extras': '-*,username'})['result']
-        userPlaylists = rdio.call('getPlaylists', {'extras': '-*,name,key'})['result']['owned']
-      except urllib2.HTTPError:
-        return redirect(url_for('logout'))
-      logging.debug("rdio user: %s", currentUser)
-      logging.debug("playlists: %s", userPlaylists)
-      return render_template('authenticated.html', username=currentUser['username'], playlists=userPlaylists)
-  else:
+      return Rdio(RDIO_CREDS, (session_data['at'], session_data['ats']))
+  return None
+
+def clearSession(session):
+  session_id = session.pop('uuid', None)
+  if session_id is not None and session_id in memory_store:
+    del memory_store[session_id]
+
+
+@app.route("/")
+def home():
+  rdio = rdioFromSession(session)
+  if rdio is None:
+    # user is not logged in yet, render index
+    clearSession(session)
     session['uuid'] = uuid.uuid4().hex
     return render_template('index.html')
+
+  # else render logged in view
+  try:
+    currentUser = rdio.call('currentUser', {'extras': '-*,username'})['result']
+    userPlaylists = rdio.call('getPlaylists', {'extras': '-*,name,key'})['result']['owned']
+  except urllib2.HTTPError:
+    return redirect(url_for('logout'))
+
+  logging.debug("rdio user: %s", currentUser)
+  logging.debug("playlists: %s", userPlaylists)
+  return render_template('authenticated.html', username=currentUser['username'], playlists=userPlaylists)
 
 @app.route("/login")
 def login():
   session_id = session['uuid']
   removeFromStore(session_id)
   rdio = Rdio(RDIO_CREDS)
-  auth_url = rdio.begin_authentication(callback_url=url_for('rdio_callback', _external=True))
+  auth_url = rdio.begin_authentication(callback_url=url_for('rdio_callback', _external=True),
+                                       mode='redirect')
   session_data = {'expires': datetime.datetime.now() + STORE_DURATION,
                   'rt': rdio.token[0],
                   'rts': rdio.token[1]}
@@ -85,11 +102,32 @@ def rdio_callback():
 
 @app.route("/logout")
 def logout():
-  session_id = session.pop('uuid', None)
-  if session_id is not None:
-    del memory_store[session_id]
-  return redirect(url_for('index'))
+  clearSession(session)
+  return redirect(url_for('home'))
+
+@app.route("/save")
+def save():
+  rdio = rdioFromSession(session)
+  if rdio is None:
+    clearSession(session)
+    return redirect(url_for('home'))
+
+  try:
+    target_playlist = request.args.get('playlist', None)
+    if target_playlist is None:
+      new_playlist = rdio.call('createPlaylist', {'name': 'Billboard Hot 100',
+                                                  'description': 'The Billboard Hot 100 chart',
+                                                  'tracks': 't123'})['result']
+      target_playlist = new_playlist['key']
+    chart = scrapeBillboard()
+    result = Charter(rdio=rdio).updatePlaylist(target_playlist, chart)
+    if result['status'] != 'ok':
+      raise urllib2.HTTPError()
+  except urllib2.HTTPError:
+    return render_template('error.html')
+
+  return render_template('complete.html', result=result['result'])
   
 
 if __name__ == "__main__":
-  app.run()
+  app.run(port=3030)
