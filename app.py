@@ -1,11 +1,12 @@
 import datetime
 import logging
 import uuid
+import urllib2
 
 from flask import Flask, redirect, render_template, request, session, url_for
 
-from billboard.scraper import scrapeBillboard
-from charter.charter import Charter
+from billboard import scraper
+from charter import Charter
 import config
 from rdio.rdio import Rdio
 
@@ -59,14 +60,7 @@ def home():
     return render_template('index.html')
 
   # else render logged in view
-  try:
-    currentUser = rdio.call('currentUser', {'extras': '-*,username'})['result']
-    userPlaylists = rdio.call('getPlaylists', {'extras': '-*,name,key'})['result']['owned']
-  except urllib2.HTTPError:
-    return redirect(url_for('logout'))
-
-  logging.debug("rdio user: %s", currentUser)
-  logging.debug("playlists: %s", userPlaylists)
+  return redirect(url_for('charts'))
   return render_template('authenticated.html', username=currentUser['username'], playlists=userPlaylists)
 
 @app.route("/login")
@@ -105,6 +99,37 @@ def logout():
   clearSession(session)
   return redirect(url_for('home'))
 
+@app.route("/charts")
+def charts():
+  charts = scraper.chartList()
+  try:
+    rdio = rdioFromSession(session)
+    currentUser = rdio.call('currentUser', {'extras': '-*,username'})['result']
+  except urllib2.HTTPError:
+    return redirect(url_for('logout'))
+  return render_template('chart_list.html', username=currentUser['username'], charts=charts)
+
+@app.route("/charts/<billboard_uri>")
+def get_chart(billboard_uri):
+  try:
+    rdio = rdioFromSession(session)
+    currentUser = rdio.call('currentUser', {'extras': '-*,username'})['result']
+    userPlaylists = rdio.call('getPlaylists', {'extras': '-*,name,key'})['result']['owned']
+  except urllib2.HTTPError:
+    return redirect(url_for('logout'))
+
+  chart = scraper.scrapeChart(billboard_uri)
+
+  if len(chart['keys']) == 0:
+    logging.warn("Empty chart at %s" % billboard_uri)
+    return render_template('error.html', chart=chart)
+
+  return render_template('save_chart.html',
+                         username=currentUser['username'],
+                         playlists=userPlaylists,
+                         chart=chart)
+
+
 @app.route("/save")
 def save():
   rdio = rdioFromSession(session)
@@ -113,14 +138,18 @@ def save():
     return redirect(url_for('home'))
 
   try:
-    target_playlist = request.args.get('playlist', None)
+    target_playlist = request.args.get('destination', None)
+    playlist_name = request.args.get('name', 'Billboard Playlist')
+    tracks = request.args.get('tracks', None)
     if target_playlist is None:
-      new_playlist = rdio.call('createPlaylist', {'name': 'Billboard Hot 100',
-                                                  'description': 'The Billboard Hot 100 chart',
+      new_playlist = rdio.call('createPlaylist', {'name': "Billboard " + playlist_name,
+                                                  'description': '',
                                                   'tracks': 't123'})['result']
       target_playlist = new_playlist['key']
-    chart = scrapeBillboard()
-    result = Charter(rdio=rdio).updatePlaylist(target_playlist, chart)
+
+    if tracks is None:
+      return render_template('error.html')
+    result = Charter(rdio=rdio).updatePlaylist(target_playlist, tracks)
     if result['status'] != 'ok':
       raise urllib2.HTTPError()
   except urllib2.HTTPError:

@@ -27,22 +27,27 @@
     <div class="container">
       <div class="header">
         <ul class="nav nav-pills pull-right">
-          <li><span class="text">Hello, {{username}}</span></li>
+          <li><span class="text">Welcome, {{username}}</span></li>
           <li><a href="{{url_for('logout')}}">Logout</a></li>
         </ul>
         <h3 class="text-muted">Billboard Playlist Updater</h3>
       </div>
 
-      <div class="jumbotron">
-        <h2>OK, we're done!</h2>
-        <p class="lead">Wasn't that easy?  Check your playlist out at: </p>
-        <p class="center"><a href="{{result['shortUrl']}}">{{result['shortUrl']}}</a></p>
-        <p><a href="{{url_for('charts')}}">Save another chart?</a></p>
-        <p>Or <a href="{{url_for('logout')}}">logout.</a></p>
+      <div class="row marketing">
+        <div class="col-lg-8">
+          <h4>The Billboard Charts</h4>
+          <div>Select the chart that you would like to copy into a playlist</div>
+          <br />
+          <ul>
+            {% for chart in charts %}
+            <li>{{chart['title']}} • <a href="{{chart['billboard_url']}}" target="_blank">View</a> • <a href="{{url_for('get_chart', billboard_uri=chart['path'])}}">Select</a></li>
+            {% endfor %}
+          </ul>
+        </div>
       </div>
 
       <div class="footer">
-        <p>&copy; <a href="http://rdio.com">Rdio</a> // <a href="http://rkn.la/">rknLA</a> 2013</p>
+        <p>&copy; Company 2013</p>
       </div>
 
     </div> <!-- /container -->
